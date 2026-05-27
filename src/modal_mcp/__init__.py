@@ -1,0 +1,2 @@
+"""Modal MCP server package."""
+

@@ -1,139 +1,186 @@
 # Modal MCP Server
 
-An MCP server implementation for interacting with Modal volumes and deploying Modal applications from within Cursor.
+MCP server for operating Modal apps and volumes through the Modal CLI.
 
-## Installation
+This fork is hardened for local agent usage:
 
-1. Clone this repository:
-```bash
-git clone https://github.com/smehmood/modal-mcp-server.git
-cd modal-mcp-server
+- read-only inspection for Modal apps and volumes;
+- deploy support for file refs and module refs;
+- volume upload, download, copy, create, rename, and delete;
+- bounded app log fetching by default;
+- confirmation flags for destructive operations;
+- `.env` support for local credentials without echoing secrets.
+
+## Requirements
+
+- Python 3.11+
+- `uv`
+- Modal CLI credentials
+
+Modal officially reads credentials from `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`.
+
+Supported local `.env` keys:
+
+```env
+MODAL_TOKEN_ID=ak-...
+MODAL_TOKEN_SECRET=as-...
 ```
 
-2. Install dependencies using `uv`:
+Proxy Auth Tokens are different. They are used as HTTP headers for protected Web
+Functions, not for Modal CLI authentication. Store them separately if your app
+needs to call proxy-protected endpoints:
+
+```env
+MODAL_PROXY_AUTH_KEY=wk-...
+MODAL_PROXY_AUTH_SECRET=ws-...
+```
+
+The server searches for `.env` from the current working directory up through
+parent directories. You can override this with `MODAL_MCP_ENV_FILE`.
+
+## Install
+
 ```bash
 uv sync
 ```
 
-## Configuration
+## Run
 
-To use this MCP server in Cursor, add the following configuration to your `~/.cursor/mcp.json`:
+```bash
+uv run modal-mcp-server
+```
+
+## MCP Client Configuration
+
+Example:
 
 ```json
 {
   "mcpServers": {
-    "modal-mcp-server": {
+    "modal-mcp": {
       "command": "uv",
       "args": [
-        "--project", "/path/to/modal-mcp-server",
-        "run", "/path/to/modal-mcp-server/src/modal_mcp/server.py"
+        "--project",
+        "G:/RunComfy/vendor/modal-mcp",
+        "run",
+        "modal-mcp-server"
       ]
     }
   }
 }
 ```
 
-Replace `/path/to/modal-mcp-server` with the absolute path to your cloned repository.
+If the MCP client starts the server from another directory, set an explicit env
+file path:
 
-## Requirements
-
-- Python 3.11 or higher
-- `uv` package manager
-- Modal CLI configured with valid credentials
-- For Modal deploy support:
-  - Project being deployed must use `uv` for dependency management
-  - Modal must be installed in the project's virtual environment
-
-## Supported Tools
-
-### Modal Volume Operations
-
-1. **List Modal Volumes** (`list_modal_volumes`)
-   - Lists all Modal volumes in your environment
-   - Returns JSON-formatted volume information
-   - Parameters: None
-
-2. **List Volume Contents** (`list_modal_volume_contents`)
-   - Lists files and directories in a Modal volume
-   - Parameters:
-     - `volume_name`: Name of the Modal volume
-     - `path`: Path within volume (default: "/")
-
-3. **Copy Files** (`copy_modal_volume_files`)
-   - Copies files within a Modal volume
-   - Parameters:
-     - `volume_name`: Name of the Modal volume
-     - `paths`: List of paths where last path is destination
-   - Example: `["source.txt", "dest.txt"]` or `["file1.txt", "file2.txt", "dest_dir/"]`
-
-4. **Remove Files** (`remove_modal_volume_file`)
-   - Deletes a file or directory from a Modal volume
-   - Parameters:
-     - `volume_name`: Name of the Modal volume
-     - `remote_path`: Path to file/directory to delete
-     - `recursive`: Boolean flag for recursive deletion (default: false)
-
-5. **Upload Files** (`put_modal_volume_file`)
-   - Uploads a file or directory to a Modal volume
-   - Parameters:
-     - `volume_name`: Name of the Modal volume
-     - `local_path`: Path to local file/directory to upload
-     - `remote_path`: Path in volume to upload to (default: "/")
-     - `force`: Boolean flag to overwrite existing files (default: false)
-
-6. **Download Files** (`get_modal_volume_file`)
-   - Downloads files from a Modal volume
-   - Parameters:
-     - `volume_name`: Name of the Modal volume
-     - `remote_path`: Path to file/directory in volume to download
-     - `local_destination`: Local path to save downloaded files (default: current directory)
-     - `force`: Boolean flag to overwrite existing files (default: false)
-   - Note: Use "-" as `local_destination` to write file contents to stdout
-
-### Modal Deployment
-
-1. **Deploy Modal App** (`deploy_modal_app`)
-   - Deploys a Modal application
-   - Parameters:
-     - `absolute_path_to_app`: Absolute path to the Modal application file
-   - Note: The project containing the Modal app must:
-     - Use `uv` for dependency management
-     - Have the `modal` CLI installed in its virtual environment
-
-## Response Format
-
-All tools return responses in a standardized format, with slight variations depending on the operation type:
-
-```python
-# JSON operations (list volumes, list contents):
+```json
 {
-    "success": True,
-    "data": {...}  # JSON data from Modal CLI
-}
-
-# File operations (put, get, copy, remove):
-{
-    "success": True,
-    "message": "Operation successful message",
-    "command": "executed command string",
-    "stdout": "command output",  # if any
-    "stderr": "error output"     # if any
-}
-
-# Error case (all operations):
-{
-    "success": False,
-    "error": "Error message describing what went wrong",
-    "command": "executed command string",  # for file operations
-    "stdout": "command output",  # if available
-    "stderr": "error output"     # if available
+  "mcpServers": {
+    "modal-mcp": {
+      "command": "uv",
+      "args": [
+        "--project",
+        "G:/RunComfy/vendor/modal-mcp",
+        "run",
+        "modal-mcp-server"
+      ],
+      "env": {
+        "MODAL_MCP_ENV_FILE": "G:/RunComfy/.env"
+      }
+    }
+  }
 }
 ```
 
-## Contributing
+## Tools
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+### Deploy
 
-## License
+- `deploy_modal_app`
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Supports:
+
+- `app_ref`
+- `absolute_path_to_app`
+- `module`
+- `working_directory`
+- `use_uv`
+- `name`
+- `environment`
+- `tag`
+- `stream_logs`
+- `timestamps`
+- `strategy`
+- `dry_run`
+
+### Volumes
+
+- `list_modal_volumes`
+- `list_modal_volume_contents`
+- `copy_modal_volume_files`
+- `remove_modal_volume_file`
+- `put_modal_volume_file`
+- `get_modal_volume_file`
+- `create_modal_volume`
+- `delete_modal_volume`
+- `rename_modal_volume`
+
+Destructive tools require confirmation flags unless `dry_run=true`:
+
+- `remove_modal_volume_file`: `confirm_delete=true`
+- `delete_modal_volume`: `confirm_delete_volume=true`
+- `rename_modal_volume`: `confirm_rename=true`
+
+### Apps
+
+- `list_modal_apps`
+- `get_modal_app_history`
+- `get_modal_app_logs`
+- `stop_modal_app`
+- `rollback_modal_app`
+- `rollover_modal_app`
+
+Destructive or state-changing app tools require confirmation flags unless
+`dry_run=true`:
+
+- `stop_modal_app`: `confirm_stop=true`
+- `rollback_modal_app`: `confirm_rollback=true`
+- `rollover_modal_app`: `confirm_rollover=true`
+
+`get_modal_app_logs` defaults to bounded fetch. Streaming logs with `follow=true`
+requires `confirm_follow=true`.
+
+## Response Shape
+
+All tools return:
+
+```json
+{
+  "success": true,
+  "operation": "list_modal_volumes",
+  "command": {
+    "argv": ["modal", "volume", "list", "--json"],
+    "display": "modal volume list --json",
+    "cwd": null,
+    "dry_run": false
+  },
+  "returncode": 0,
+  "data": [],
+  "stdout": "",
+  "stderr": "",
+  "error": null
+}
+```
+
+## Test
+
+```bash
+uv run python -m unittest discover -s tests
+```
+
+On locked-down Windows environments, use a workspace-local uv cache:
+
+```powershell
+$env:UV_CACHE_DIR='G:\RunComfy\vendor\modal-mcp\.uv-cache'
+uv run python -m unittest discover -s tests
+```
