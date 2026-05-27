@@ -127,6 +127,7 @@ class ModalCommandRunner:
                 cwd=cwd,
                 env=modal_environment(Path(cwd) if cwd else Path.cwd()),
                 capture_output=True,
+                stdin=subprocess.DEVNULL,
                 text=True,
                 timeout=timeout,
                 check=False,
